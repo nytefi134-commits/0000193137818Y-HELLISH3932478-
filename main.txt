@@ -1,0 +1,775 @@
+-- language: Lua, executor: Delta, game: Ultimate Battlegrounds
+-- Met1rror — Часть 1 (Настройка и Загрузка)
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ==========================================
+-- LOADING SCREEN
+-- ==========================================
+local function CreateLoadingScreen()
+    local loadGui = Instance.new("ScreenGui")
+    loadGui.Name = "LoadingScreen"
+    loadGui.DisplayOrder = 999
+    loadGui.ResetOnSpawn = false
+    loadGui.Parent = playerGui
+
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
+    bg.BorderSizePixel = 0
+    bg.Parent = loadGui
+
+    local ringFrame = Instance.new("Frame")
+    ringFrame.Size = UDim2.new(0, 160, 0, 160)
+    ringFrame.Position = UDim2.new(0.5, 0, 0.4, 0)
+    ringFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    ringFrame.BackgroundTransparency = 1
+    ringFrame.Parent = bg
+
+    local ringCorner = Instance.new("UICorner")
+    ringCorner.CornerRadius = UDim.new(1, 0)
+    ringCorner.Parent = ringFrame
+
+    local ringStroke = Instance.new("UIStroke")
+    ringStroke.Color = Color3.fromRGB(0, 210, 255)
+    ringStroke.Thickness = 4
+    ringStroke.Parent = ringFrame
+
+    local ringGradient = Instance.new("UIGradient")
+    ringGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 50, 100)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 210, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 50, 100))
+    })
+    ringGradient.Parent = ringStroke
+
+    local spinConnection = RunService.RenderStepped:Connect(function(dt)
+        if ringFrame and ringFrame.Parent then
+            ringFrame.Rotation = ringFrame.Rotation + (dt * 120)
+        end
+    end)
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 60)
+    title.Position = UDim2.new(0, 0, 0.4, -30)
+    title.BackgroundTransparency = 1
+    title.Text = "met1rror"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.GothamBlack
+    title.TextSize = 42
+    title.TextTransparency = 1
+    title.Parent = bg
+
+    local sub = Instance.new("TextLabel")
+    sub.Size = UDim2.new(1, 0, 0, 20)
+    sub.Position = UDim2.new(0, 0, 0.4, 60)
+    sub.BackgroundTransparency = 1
+    sub.Text = "INITIALIZING MODULES"
+    sub.TextColor3 = Color3.fromRGB(150, 150, 170)
+    sub.Font = Enum.Font.GothamBold
+    sub.TextSize = 12
+    sub.TextTransparency = 1
+    sub.Parent = bg
+
+    local pBarBg = Instance.new("Frame")
+    pBarBg.Size = UDim2.new(0, 300, 0, 4)
+    pBarBg.Position = UDim2.new(0.5, -150, 0.8, 0)
+    pBarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    pBarBg.BorderSizePixel = 0
+    pBarBg.Parent = bg
+    local pBarBgCorner = Instance.new("UICorner"); pBarBgCorner.CornerRadius = UDim.new(1, 0); pBarBgCorner.Parent = pBarBg
+
+    local pBarFill = Instance.new("Frame")
+    pBarFill.Size = UDim2.new(0, 0, 1, 0)
+    pBarFill.BackgroundColor3 = Color3.fromRGB(0, 210, 255)
+    pBarFill.BorderSizePixel = 0
+    pBarFill.Parent = pBarBg
+    local pBarFillCorner = Instance.new("UICorner"); pBarFillCorner.CornerRadius = UDim.new(1, 0); pBarFillCorner.Parent = pBarFill
+
+    task.spawn(function()
+        task.wait(0.2)
+        TweenService:Create(title, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {TextTransparency = 0, TextSize = 48}):Play()
+        TweenService:Create(sub, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+        task.wait(0.5)
+        TweenService:Create(pBarFill, TweenInfo.new(2.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 1, 0)}):Play()
+    end)
+
+    task.delay(4, function()
+        if spinConnection then spinConnection:Disconnect() end
+        TweenService:Create(bg, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(title, TweenInfo.new(0.8), {TextTransparency = 1}):Play()
+        TweenService:Create(sub, TweenInfo.new(0.8), {TextTransparency = 1}):Play()
+        TweenService:Create(pBarBg, TweenInfo.new(0.8), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(pBarFill, TweenInfo.new(0.8), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(ringFrame, TweenInfo.new(0.8), {Size = UDim2.new(0,0,0,0)}):Play()
+        task.wait(1)
+        loadGui:Destroy()
+    end)
+end
+CreateLoadingScreen()
+
+-- ==========================================
+-- CORE LOGIC & UTILITIES
+-- ==========================================
+_G.LagServer = { loopThread = nil, running = false }
+_G.WallCombo = { loopThread = nil, running = false }
+_G.KillAura = { loopThread = nil, running = false, fires = 0 }
+_G.LagWallCombo = { loopThread = nil, running = false }
+_G.Invulnerability = { loopThread = nil, running = false, currentNPC = nil }
+
+function GetCurrentCharacter()
+    local ok, res = pcall(function() return LocalPlayer.Data.Character.Value end)
+    if ok and res then return res end
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    return hum and hum:GetAttribute("CharacterName") or "Gon"
+end
+
+function HasAbility4(characterName)
+    local ok, res = pcall(function()
+        local chars = ReplicatedStorage:WaitForChild("Characters")
+        local folder = chars:FindFirstChild(characterName)
+        local ab = folder and folder:FindFirstChild("Abilities")
+        return ab and ab:FindFirstChild("4") ~= nil
+    end)
+    return ok and res
+end
+
+function FindNearestPlayer()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    local nearest, dist = nil, math.huge
+    for _,p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local tr = p.Character:FindFirstChild("HumanoidRootPart")
+            local th = p.Character:FindFirstChild("Humanoid")
+            if tr and th then
+                local hp = th:GetAttribute("Health") or th.Health
+                if hp and hp > 0 then
+                    local d = (hrp.Position - tr.Position).Magnitude
+                    if d < dist then dist = d; nearest = p end
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+function FindNearestPlayerAura()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    local nearest, dist = nil, math.huge
+    for _,p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local tr = p.Character:FindFirstChild("HumanoidRootPart")
+            local th = p.Character:FindFirstChild("Humanoid")
+            if tr and th then
+                local hp = th:GetAttribute("Health") or th.Health
+                if hp and hp > 0 then
+                    local d = (hrp.Position - tr.Position).Magnitude
+                    if d < dist and d <= 150 then dist = d; nearest = p end
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+local function GetCFrameString(cf)
+    local x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 = cf:GetComponents()
+    return string.format("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22)
+end
+-- language: Lua, executor: Delta, game: Ultimate Battlegrounds
+-- Met1rror — Часть 2 (Движки)
+
+-- ==========================================
+-- LAG V1
+-- ==========================================
+function _G.LagServer:UseAbility4()
+    local charName = GetCurrentCharacter()
+    if not HasAbility4(charName) then return end
+    local target = FindNearestPlayer()
+    if not target then return end
+    local targetChar = target.Character
+    local targetCF = targetChar and targetChar:FindFirstChild("HumanoidRootPart") and targetChar.HumanoidRootPart.CFrame or CFrame.new()
+
+    pcall(function()
+        local ability = ReplicatedStorage.Characters[charName].Abilities["4"]
+        ReplicatedStorage.Remotes.Abilities.Ability:FireServer(ability, 9000000)
+        local actions = {377,380,383,384,385,387,389}
+        for i=1,7 do
+            local args = {
+                ability, charName..":Abilities:4", i, 9000000,
+                { HitboxCFrames = {targetCF,targetCF}, BestHitCharacter = targetChar, HitCharacters = {targetChar}, Ignore = i>2 and {ActionNumber1={targetChar}} or {}, DeathInfo = {}, BlockedCharacters = {}, HitInfo = { IsFacing = not (i==1 or i==2), IsInFront = i<=2, Blocked = i>2 and false or nil }, ServerTime = tick(), Actions = i>2 and {ActionNumber1={}} or {}, FromCFrame = targetCF },
+                "Action"..actions[i], i==2 and 0.1 or nil
+            }
+            if i==7 then
+                args[5].RockCFrame = targetCF
+                args[5].Actions = { ActionNumber1 = { [target.Name] = { StartCFrameStr = tostring(targetCF.X)..","..tostring(targetCF.Y)..","..tostring(targetCF.Z)..",0,0,0,0,0,0,0,0,0", ImpulseVelocity = Vector3.new(1901,-25000,291), AbilityName = "4", RotVelocityStr = "0,0,0", VelocityStr = "1.900635,0.010867,0.291061", Duration = 2, RotImpulseVelocity = Vector3.new(5868,-6649,-7414), Seed = math.random(1,1e6), LookVectorStr = "0.988493,0,0.151268" } } }
+            end
+            ReplicatedStorage.Remotes.Combat.Action:FireServer(unpack(args))
+        end
+    end)
+end
+
+function _G.LagServer:Start()
+    if self.loopThread then return end
+    self.running = true
+    self.loopThread = task.spawn(function()
+        while self.running do
+            if FindNearestPlayer() then
+                self:UseAbility4()
+                pcall(function()
+                    local c = GetCurrentCharacter()
+                    ReplicatedStorage.Remotes.Abilities.AbilityCanceled:FireServer(ReplicatedStorage.Characters[c].Abilities["4"])
+                end)
+                task.wait(0.01)
+            else task.wait(0.5) end
+        end
+        self.loopThread = nil
+    end)
+end
+
+-- ==========================================
+-- WALLCOMBO (50 studs, damage)
+-- ==========================================
+function _G.WallCombo:UseCombo()
+    local target = FindNearestPlayer()
+    if not target then return end
+    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local tChar = target.Character
+    local tHRP = tChar and tChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP or not tHRP then return end
+    if (myHRP.Position - tHRP.Position).Magnitude > 50 then return end
+
+    local charName = GetCurrentCharacter()
+    local wallCombo = ReplicatedStorage.Characters[charName] and ReplicatedStorage.Characters[charName]:FindFirstChild("WallCombo")
+    if not wallCombo then return end
+
+    local tCF, myCF = tHRP.CFrame, myHRP.CFrame
+    local token = math.random(100000, 999999)
+    local Ability = ReplicatedStorage.Remotes.Abilities.Ability
+    local Action  = ReplicatedStorage.Remotes.Combat.Action
+    local Cancel  = ReplicatedStorage.Remotes.Abilities.AbilityCanceled
+    local EmoteClaim = ReplicatedStorage.Remotes.Combat:FindFirstChild("EmoteClaim")
+
+    if EmoteClaim then pcall(function() EmoteClaim:FireServer() end) end
+    pcall(function() ReplicatedStorage.Remotes.Combat.Melee:FireServer(tChar) end)
+    pcall(function() ReplicatedStorage.Remotes.Combat.RagdollHit:FireServer(tChar) end)
+    pcall(function() ReplicatedStorage.Remotes.Effects.VFX:FireServer("Hit", tHRP.Position) end)
+    pcall(function() Ability:FireServer(wallCombo, token, nil, tChar, tHRP.Position) end)
+
+    pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 1, token, { HitboxCFrames = {}, BestHitCharacter = tChar, HitCharacters = {tChar}, Ignore = {}, DeathInfo = {}, Actions = {}, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true, GetUp = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action69", 0) end)
+    pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 2, token, { HitboxCFrames = {tCF}, BestHitCharacter = tChar, HitCharacters = {tChar}, Ignore = { ActionNumber1 = {tChar} }, DeathInfo = {}, Actions = { ActionNumber1 = {} }, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action70") end)
+    pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 3, token, { HitboxCFrames = {tCF}, BestHitCharacter = tChar, HitCharacters = {tChar}, Ignore = { ActionNumber1 = {tChar} }, DeathInfo = {}, Actions = { ActionNumber1 = {} }, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action71") end)
+    pcall(function() Cancel:FireServer(wallCombo) end)
+end
+
+function _G.WallCombo:Start()
+    if self.loopThread then return end
+    self.running = true
+    self.loopThread = task.spawn(function()
+        while self.running do
+            self:UseCombo()
+            task.wait(0.02)
+        end
+        self.loopThread = nil
+    end)
+end
+
+-- ==========================================
+-- KILL AURA
+-- ==========================================
+local function ExecuteKillAura(target)
+    local charName = GetCurrentCharacter()
+    local wallCombo = ReplicatedStorage.Characters[charName] and ReplicatedStorage.Characters[charName]:FindFirstChild("WallCombo")
+    if not wallCombo or not target then return end
+    local tChar, tHRP = target.Character, target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not tHRP or not myHRP then return end
+
+    local tCF, myCF = tHRP.CFrame, myHRP.CFrame
+    local token = math.random(100000, 999999)
+    pcall(function() ReplicatedStorage.Remotes.Replication.ReplicationSpeed:FireServer(0.01) end)
+    pcall(function() ReplicatedStorage.Remotes.Abilities.Ability:FireServer(wallCombo, token, nil, tChar, tHRP.Position) end)
+    
+    local base = { StartCFrameStr = GetCFrameString(tCF), ImpulseVelocity = Vector3.new(-16613, 150000, -65589), AbilityName = "WallCombo", RotVelocityStr = "0,0,0", VelocityStr = "-0.86,2.53,0.04", Gravity = 200000, LookVectorStr = "0,0,0", Duration = 2 }
+    local p1 = table.clone(base); p1.RotImpulseVelocity = Vector3.new(-7976, -8690, 6893)
+    local p2 = table.clone(base); p2.RotImpulseVelocity = Vector3.new(-7962, 8808, 7145)
+    
+    pcall(function() ReplicatedStorage.Remotes.Combat.Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 4, token, { HitboxCFrames = {tCF, tCF}, BestHitCharacter = tChar, HitCharacters = {tChar}, Ignore = {}, DeathInfo = {}, Actions = { ActionNumber1 = { [tChar.Name] = p1 } }, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action1254", 0.1) end)
+    pcall(function() ReplicatedStorage.Remotes.Combat.Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 4, token, { HitboxCFrames = {tCF, tCF}, BestHitCharacter = tChar, HitCharacters = {tChar}, Ignore = {}, DeathInfo = {}, Actions = { ActionNumber1 = { [tChar.Name] = p2 } }, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action1255", 0.1) end)
+    pcall(function() ReplicatedStorage.Remotes.Combat.Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 3, token, { HitboxCFrames = {tCF}, BestHitCharacter = tChar, HitCharacters = {tChar}, Ignore = { ActionNumber1 = {tChar} }, DeathInfo = {}, Actions = { ActionNumber1 = {} }, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action1256") end)
+end
+
+function _G.KillAura:Start()
+    if self.loopThread then return end
+    self.running = true
+    self.fires = 0
+    self.loopThread = task.spawn(function()
+        while self.running do
+            local target = FindNearestPlayerAura()
+            if target then
+                ExecuteKillAura(target)
+                self.fires = self.fires + 1
+                task.wait(0.05)
+            else task.wait(0.1) end
+        end
+        self.loopThread = nil
+    end)
+end
+
+-- ==========================================
+-- LAG WALLCOMBO (МЕГА-СПАМ)
+-- ==========================================
+function _G.LagWallCombo:Start()
+    if self.loopThread then return end
+    self.running = true
+    self.loopThread = task.spawn(function()
+        while self.running do
+            local charName = GetCurrentCharacter()
+            local wallCombo = ReplicatedStorage.Characters[charName] and ReplicatedStorage.Characters[charName]:FindFirstChild("WallCombo")
+            local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if wallCombo and myHRP then
+                local myPos = myHRP.Position
+                local myCF = myHRP.CFrame
+                local Action = ReplicatedStorage.Remotes.Combat.Action
+                local Ability = ReplicatedStorage.Remotes.Abilities.Ability
+                
+                local targets = {}
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("Model") and obj ~= LocalPlayer.Character then
+                        local hum = obj:FindFirstChildOfClass("Humanoid")
+                        local tHRP = obj:FindFirstChild("HumanoidRootPart")
+                        if hum and tHRP and hum.Health > 0 then
+                            table.insert(targets, obj)
+                        end
+                    end
+                end
+                
+                if #targets > 0 then
+                    local ACTION_SPAM = 5
+                    for _, target in ipairs(targets) do
+                        if not self.running then break end
+                        local tHRP = target:FindFirstChild("HumanoidRootPart")
+                        if tHRP then
+                            local tCF = tHRP.CFrame
+                            local dirToMe = (myPos - tHRP.Position).Unit
+                            local pullForce = dirToMe * 350000 + Vector3.new(0, 150000, 0)
+                            
+                            for i = 1, ACTION_SPAM do
+                                if not self.running then break end
+                                local token = math.random(100000, 999999)
+                                local payload = { StartCFrameStr = GetCFrameString(tCF), ImpulseVelocity = pullForce, AbilityName = "WallCombo", RotVelocityStr = "0,0,0", VelocityStr = "0,0,0", Gravity = 200000, LookVectorStr = "0,0,0", Duration = 2, RotImpulseVelocity = Vector3.new(math.random(-10000, 10000), math.random(-10000, 10000), math.random(-10000, 10000)) }
+                                
+                                pcall(function() Ability:FireServer(wallCombo, token, nil, target, myPos) end)
+                                pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 1, token, { HitboxCFrames = {}, BestHitCharacter = target, HitCharacters = {target}, Ignore = {}, DeathInfo = {}, Actions = {}, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true, GetUp = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action69", 0) end)
+                                pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 2, token, { HitboxCFrames = {tCF}, BestHitCharacter = target, HitCharacters = {target}, Ignore = { ActionNumber1 = {target} }, DeathInfo = {}, Actions = { ActionNumber1 = {} }, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action70") end)
+                                pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 3, token, { HitboxCFrames = {tCF}, BestHitCharacter = target, HitCharacters = {target}, Ignore = { ActionNumber1 = {target} }, DeathInfo = {}, Actions = { ActionNumber1 = {} }, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action71") end)
+                                pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 4, token, { HitboxCFrames = {tCF, tCF}, BestHitCharacter = target, HitCharacters = {target}, Ignore = {}, DeathInfo = {}, Actions = { ActionNumber1 = { [target.Name] = payload } }, HitInfo = { Blocked = false, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action72", 0.1) end)
+                            end
+                            task.wait(0.005)
+                        end
+                    end
+                end
+            end
+            task.wait(0.05)
+        end
+        self.loopThread = nil
+    end)
+end
+
+-- ==========================================
+-- INVULNERABILITY (1000 STUDS, NO DAMAGE)
+-- ==========================================
+local function findInvulnNPC()
+    local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return nil end
+    if _G.Invulnerability.currentNPC and _G.Invulnerability.currentNPC.Parent then
+        local hum = _G.Invulnerability.currentNPC:FindFirstChildOfClass("Humanoid")
+        local tHRP = _G.Invulnerability.currentNPC:FindFirstChild("HumanoidRootPart")
+        local isPlayer = Players:GetPlayerFromCharacter(_G.Invulnerability.currentNPC) ~= nil
+        if not isPlayer and hum and tHRP and hum.Health > 0 then
+            local dist = (myHRP.Position - tHRP.Position).Magnitude
+            if dist <= 1000 then return _G.Invulnerability.currentNPC end
+        end
+    end
+    local closest, minDist = nil, 1000 
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj ~= LocalPlayer.Character then
+            local hum = obj:FindFirstChildOfClass("Humanoid")
+            local tHRP = obj:FindFirstChild("HumanoidRootPart")
+            local isPlayer = Players:GetPlayerFromCharacter(obj) ~= nil
+            if not isPlayer and hum and tHRP and hum.Health > 0 then
+                local dist = (myHRP.Position - tHRP.Position).Magnitude
+                if dist < minDist then minDist = dist; closest = obj end
+            end
+        end
+    end
+    _G.Invulnerability.currentNPC = closest
+    return _G.Invulnerability.currentNPC
+end
+
+function _G.Invulnerability:Start()
+    if self.loopThread then return end
+    self.running = true
+    self.loopThread = task.spawn(function()
+        while self.running do
+            local charName = GetCurrentCharacter()
+            local wallCombo = ReplicatedStorage.Characters[charName] and ReplicatedStorage.Characters[charName]:FindFirstChild("WallCombo")
+            local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if wallCombo and myHRP then
+                local target = findInvulnNPC()
+                if target then
+                    local tHRP = target:FindFirstChild("HumanoidRootPart")
+                    if tHRP then
+                        local myPos = myHRP.Position
+                        local myCF = myHRP.CFrame
+                        local tCF = tHRP.CFrame
+                        local token = math.random(100000, 999999)
+                        local Action = ReplicatedStorage.Remotes.Combat.Action
+                        local Ability = ReplicatedStorage.Remotes.Abilities.Ability
+                        
+                        local dirToMe = (myPos - tHRP.Position).Unit
+                        local pullForce = dirToMe * 350000 + Vector3.new(0, 100000, 0)
+                        local payload = { StartCFrameStr = GetCFrameString(tCF), ImpulseVelocity = pullForce, AbilityName = "WallCombo", RotVelocityStr = "0,0,0", VelocityStr = "0,0,0", Gravity = 200000, LookVectorStr = "0,0,0", Duration = 2, RotImpulseVelocity = Vector3.new(math.random(-10000, 10000), math.random(-10000, 10000), math.random(-10000, 10000)) }
+                        
+                        pcall(function() Ability:FireServer(wallCombo, token, nil, target, myPos) end)
+                        pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 1, token, { HitboxCFrames = {}, BestHitCharacter = target, HitCharacters = {target}, Ignore = {}, DeathInfo = {}, Actions = {}, HitInfo = { Blocked = true, IsFacing = true, IsInFront = true, GetUp = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action69", 0) end)
+                        task.wait(0.12)
+                        pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 2, token, { HitboxCFrames = {}, BestHitCharacter = target, HitCharacters = {target}, Ignore = { ActionNumber1 = {target} }, DeathInfo = {}, Actions = { ActionNumber1 = {} }, HitInfo = { Blocked = true, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action70") end)
+                        task.wait(0.12)
+                        pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 3, token, { HitboxCFrames = {}, BestHitCharacter = target, HitCharacters = {target}, Ignore = { ActionNumber1 = {target} }, DeathInfo = {}, Actions = { ActionNumber1 = {} }, HitInfo = { Blocked = true, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action71") end)
+                        task.wait(0.12)
+                        pcall(function() Action:FireServer(wallCombo, "Characters:"..charName..":WallCombo", 4, token, { HitboxCFrames = {}, BestHitCharacter = target, HitCharacters = {target}, Ignore = {}, DeathInfo = {}, Actions = { ActionNumber1 = { [target.Name] = payload } }, HitInfo = { Blocked = true, IsFacing = true, IsInFront = true }, BlockedCharacters = {}, ServerTime = tick(), FromCFrame = myCF }, "Action72", 0.1) end)
+                    end
+                end
+            end
+            task.wait(1.0) 
+        end
+        self.loopThread = nil
+    end)
+end
+
+function _G.LagServer:Stop() self.running = false; if self.loopThread then task.cancel(self.loopThread); self.loopThread = nil end end
+function _G.WallCombo:Stop() self.running = false; if self.loopThread then task.cancel(self.loopThread); self.loopThread = nil end end
+function _G.KillAura:Stop() self.running = false; if self.loopThread then task.cancel(self.loopThread); self.loopThread = nil end end
+function _G.LagWallCombo:Stop() self.running = false; if self.loopThread then task.cancel(self.loopThread); self.loopThread = nil end end
+function _G.Invulnerability:Stop() self.running = false; self.currentNPC = nil; if self.loopThread then task.cancel(self.loopThread); self.loopThread = nil end end
+-- language: Lua, executor: Delta, game: Ultimate Battlegrounds
+-- Met1rror — Часть 3 (UI)
+
+while playerGui:FindFirstChild("LoadingScreen") do
+    task.wait(0.1)
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Met1rror_UI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = playerGui
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 340, 0, 345)
+Main.Position = UDim2.new(0.5, -170, 0.5, -172)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+Main.BackgroundTransparency = 0.1
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Draggable = true
+Main.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner"); MainCorner.CornerRadius = UDim.new(0, 10); MainCorner.Parent = Main
+local MainStroke = Instance.new("UIStroke"); MainStroke.Thickness = 1.5; MainStroke.Parent = Main
+
+local strokeGradient = Instance.new("UIGradient")
+strokeGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 50, 100)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 210, 255))
+})
+strokeGradient.Parent = MainStroke
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 90, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+Sidebar.BackgroundTransparency = 0.2
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = Main
+local SidebarCorner = Instance.new("UICorner"); SidebarCorner.CornerRadius = UDim.new(0, 10); SidebarCorner.Parent = Sidebar
+local SidebarFix = Instance.new("Frame"); SidebarFix.Size = UDim2.new(0, 10, 1, 0); SidebarFix.Position = UDim2.new(1, -10, 0, 0); SidebarFix.BackgroundColor3 = Color3.fromRGB(20, 20, 28); SidebarFix.BackgroundTransparency = 0.2; SidebarFix.Parent = Sidebar
+
+-- Кнопки вкладок
+local TabCombat = Instance.new("TextButton")
+TabCombat.Size = UDim2.new(1, 0, 0, 35)
+TabCombat.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+TabCombat.Text = "  Combat"
+TabCombat.TextColor3 = Color3.fromRGB(255, 255, 255)
+TabCombat.Font = Enum.Font.GothamBold
+TabCombat.TextSize = 12
+TabCombat.TextXAlignment = Enum.TextXAlignment.Left
+TabCombat.Parent = Sidebar
+local TabCombatCorner = Instance.new("UICorner"); TabCombatCorner.CornerRadius = UDim.new(0, 6); TabCombatCorner.Parent = TabCombat
+local TabIndicatorCombat = Instance.new("Frame"); TabIndicatorCombat.Size = UDim2.new(0, 4, 1, 0); TabIndicatorCombat.BackgroundColor3 = Color3.fromRGB(255, 50, 100); TabIndicatorCombat.Parent = TabCombat
+
+local TabInteres = Instance.new("TextButton")
+TabInteres.Size = UDim2.new(1, 0, 0, 35)
+TabInteres.Position = UDim2.new(0, 0, 0, 40)
+TabInteres.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+TabInteres.Text = "  Interes"
+TabInteres.TextColor3 = Color3.fromRGB(150, 150, 160)
+TabInteres.Font = Enum.Font.GothamBold
+TabInteres.TextSize = 12
+TabInteres.TextXAlignment = Enum.TextXAlignment.Left
+TabInteres.Parent = Sidebar
+local TabInteresCorner = Instance.new("UICorner"); TabInteresCorner.CornerRadius = UDim.new(0, 6); TabInteresCorner.Parent = TabInteres
+local TabIndicatorInteres = Instance.new("Frame"); TabIndicatorInteres.Size = UDim2.new(0, 4, 1, 0); TabIndicatorInteres.BackgroundColor3 = Color3.fromRGB(255, 50, 100); TabIndicatorInteres.Parent = TabInteres; TabIndicatorInteres.Visible = false
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -140, 0, 30)
+Title.Position = UDim2.new(0, 100, 0, 10)
+Title.BackgroundTransparency = 1
+Title.Text = "met1rror"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 20
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Main
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+MinimizeBtn.Position = UDim2.new(1, -30, 0, 10)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 16
+MinimizeBtn.Parent = Main
+local MinCorner = Instance.new("UICorner"); MinCorner.CornerRadius = UDim.new(0, 4); MinCorner.Parent = MinimizeBtn
+
+local CircleIcon = Instance.new("TextButton")
+CircleIcon.Size = UDim2.new(0, 45, 0, 45)
+CircleIcon.Position = UDim2.new(0, 20, 0.5, -22.5)
+CircleIcon.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+CircleIcon.Text = "M"
+CircleIcon.TextColor3 = Color3.fromRGB(0, 210, 255)
+CircleIcon.Font = Enum.Font.GothamBlack
+CircleIcon.TextSize = 20
+CircleIcon.Parent = ScreenGui
+CircleIcon.Visible = false
+local CircleCorner = Instance.new("UICorner"); CircleCorner.CornerRadius = UDim.new(1, 0); CircleCorner.Parent = CircleIcon
+local CircleStroke = Instance.new("UIStroke"); CircleStroke.Color = Color3.fromRGB(0, 210, 255); CircleStroke.Thickness = 2; CircleStroke.Parent = CircleIcon
+
+-- Контейнеры для вкладок
+local CombatFrame = Instance.new("Frame")
+CombatFrame.Size = UDim2.new(1, -100, 1, -65)
+CombatFrame.Position = UDim2.new(0, 100, 0, 45)
+CombatFrame.BackgroundTransparency = 1
+CombatFrame.Parent = Main
+
+local InteresFrame = Instance.new("Frame")
+InteresFrame.Size = UDim2.new(1, -100, 1, -65)
+InteresFrame.Position = UDim2.new(0, 100, 0, 45)
+InteresFrame.BackgroundTransparency = 1
+InteresFrame.Visible = false
+InteresFrame.Parent = Main
+
+local function StyleButton(btn, text)
+    btn.Size = UDim2.new(1, -15, 0, 38)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    btn.BackgroundTransparency = 0.2
+    btn.Text = text .. " [OFF]"
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    btn.AutoButtonColor = false
+    btn:SetAttribute("Active", false)
+    
+    local pad = Instance.new("UIPadding"); pad.PaddingLeft = UDim.new(0, 12); pad.Parent = btn
+    local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 6); corner.Parent = btn
+    local stroke = Instance.new("UIStroke"); stroke.Color = Color3.fromRGB(60, 60, 80); stroke.Parent = btn
+    
+    btn.MouseEnter:Connect(function()
+        if not btn:GetAttribute("Active") then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 55), BackgroundTransparency = 0}):Play()
+            TweenService:Create(stroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(100, 100, 130)}):Play()
+        end
+    end)
+    btn.MouseLeave:Connect(function()
+        if not btn:GetAttribute("Active") then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 40), BackgroundTransparency = 0.2}):Play()
+            TweenService:Create(stroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(60, 60, 80)}):Play()
+        end
+    end)
+    return stroke
+end
+
+-- Кнопки Combat
+local ToggleLag = Instance.new("TextButton")
+ToggleLag.Position = UDim2.new(0, 0, 0, 0)
+ToggleLag.Parent = CombatFrame
+local TLagStroke = StyleButton(ToggleLag, "Lag v1")
+
+local ToggleWall = Instance.new("TextButton")
+ToggleWall.Position = UDim2.new(0, 0, 0, 45)
+ToggleWall.Parent = CombatFrame
+local TWallStroke = StyleButton(ToggleWall, "WallCombo")
+
+local ToggleAura = Instance.new("TextButton")
+ToggleAura.Position = UDim2.new(0, 0, 0, 90)
+ToggleAura.Parent = CombatFrame
+local TAuraStroke = StyleButton(ToggleAura, "KILL AURA")
+
+local ToggleLagWall = Instance.new("TextButton")
+ToggleLagWall.Position = UDim2.new(0, 0, 0, 135)
+ToggleLagWall.Parent = CombatFrame
+local TLagWallStroke = StyleButton(ToggleLagWall, "LAG WALLCOMBO")
+
+-- Кнопки Interes
+local ToggleInvuln = Instance.new("TextButton")
+ToggleInvuln.Position = UDim2.new(0, 0, 0, 0)
+ToggleInvuln.Parent = InteresFrame
+local TInvulnStroke = StyleButton(ToggleInvuln, "INVULNERABILITY")
+
+-- Статус бокс
+local StatusBox = Instance.new("Frame")
+StatusBox.Size = UDim2.new(1, -115, 0, 60)
+StatusBox.Position = UDim2.new(0, 100, 0, 260)
+StatusBox.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+StatusBox.BackgroundTransparency = 0.2
+StatusBox.BorderSizePixel = 0
+StatusBox.Parent = Main
+local SCorner = Instance.new("UICorner"); SCorner.CornerRadius = UDim.new(0, 6); SCorner.Parent = StatusBox
+local SStroke = Instance.new("UIStroke"); SStroke.Color = Color3.fromRGB(50, 50, 70); SStroke.Parent = StatusBox
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, -20, 1, 0)
+StatusText.Position = UDim2.new(0, 10, 0, 0)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "Target: None"
+StatusText.TextColor3 = Color3.fromRGB(150, 150, 160)
+StatusText.Font = Enum.Font.Code
+StatusText.TextSize = 12
+StatusText.TextXAlignment = Enum.TextXAlignment.Left
+StatusText.TextYAlignment = Enum.TextYAlignment.Center
+StatusText.Parent = StatusBox
+
+-- Переключение вкладок
+TabCombat.MouseButton1Click:Connect(function()
+    CombatFrame.Visible = true
+    InteresFrame.Visible = false
+    TabCombat.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    TabCombat.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TabIndicatorCombat.Visible = true
+    TabInteres.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    TabInteres.TextColor3 = Color3.fromRGB(150, 150, 160)
+    TabIndicatorInteres.Visible = false
+end)
+
+TabInteres.MouseButton1Click:Connect(function()
+    CombatFrame.Visible = false
+    InteresFrame.Visible = true
+    TabInteres.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    TabInteres.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TabIndicatorInteres.Visible = true
+    TabCombat.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    TabCombat.TextColor3 = Color3.fromRGB(150, 150, 160)
+    TabIndicatorCombat.Visible = false
+end)
+
+-- Свернуть/Развернуть
+MinimizeBtn.MouseButton1Click:Connect(function()
+    Main.Visible = false
+    CircleIcon.Visible = true
+end)
+CircleIcon.MouseButton1Click:Connect(function()
+    Main.Visible = true
+    CircleIcon.Visible = false
+end)
+
+local draggingCircle, dragStartCircle, startPosCircle = false, nil, nil
+CircleIcon.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingCircle = true
+        dragStartCircle = input.Position
+        startPosCircle = CircleIcon.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then draggingCircle = false end
+        end)
+    end
+end)
+CircleIcon.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if draggingCircle then
+            local delta = input.Position - dragStartCircle
+            CircleIcon.Position = UDim2.new(startPosCircle.X.Scale, startPosCircle.X.Offset + delta.X, startPosCircle.Y.Scale, startPosCircle.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+local function ToggleStyle(btn, stroke, isOn, color)
+    btn:SetAttribute("Active", isOn)
+    if isOn then
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = color, BackgroundTransparency = 0}):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.2), {Color = color}):Play()
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    else
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 40), BackgroundTransparency = 0.2}):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(60, 60, 80)}):Play()
+        btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    end
+end
+
+-- Привязка кнопок Combat
+ToggleLag.MouseButton1Click:Connect(function()
+    if not _G.LagServer.running then _G.LagServer:Start(); ToggleLag.Text = "Lag v1 [ON]"; ToggleStyle(ToggleLag, TLagStroke, true, Color3.fromRGB(255, 50, 100))
+    else _G.LagServer:Stop(); ToggleLag.Text = "Lag v1 [OFF]"; ToggleStyle(ToggleLag, TLagStroke, false) end
+end)
+
+ToggleWall.MouseButton1Click:Connect(function()
+    if not _G.WallCombo.running then _G.WallCombo:Start(); ToggleWall.Text = "WallCombo [ON]"; ToggleStyle(ToggleWall, TWallStroke, true, Color3.fromRGB(0, 210, 255))
+    else _G.WallCombo:Stop(); ToggleWall.Text = "WallCombo [OFF]"; ToggleStyle(ToggleWall, TWallStroke, false) end
+end)
+
+ToggleAura.MouseButton1Click:Connect(function()
+    if not _G.KillAura.running then _G.KillAura:Start(); ToggleAura.Text = "KILL AURA [ON]"; ToggleStyle(ToggleAura, TAuraStroke, true, Color3.fromRGB(255, 50, 100))
+    else _G.KillAura:Stop(); ToggleAura.Text = "KILL AURA [OFF]"; ToggleStyle(ToggleAura, TAuraStroke, false) end
+end)
+
+ToggleLagWall.MouseButton1Click:Connect(function()
+    if not _G.LagWallCombo.running then _G.LagWallCombo:Start(); ToggleLagWall.Text = "LAG WALLCOMBO [ON]"; ToggleStyle(ToggleLagWall, TLagWallStroke, true, Color3.fromRGB(160, 50, 255))
+    else _G.LagWallCombo:Stop(); ToggleLagWall.Text = "LAG WALLCOMBO [OFF]"; ToggleStyle(ToggleLagWall, TLagWallStroke, false) end
+end)
+
+-- Привязка кнопки Interes
+ToggleInvuln.MouseButton1Click:Connect(function()
+    if not _G.Invulnerability.running then _G.Invulnerability:Start(); ToggleInvuln.Text = "INVULNERABILITY [ON]"; ToggleStyle(ToggleInvuln, TInvulnStroke, true, Color3.fromRGB(50, 255, 150))
+    else _G.Invulnerability:Stop(); ToggleInvuln.Text = "INVULNERABILITY [OFF]"; ToggleStyle(ToggleInvuln, TInvulnStroke, false) end
+end)
+
+-- Обновление статуса
+task.spawn(function() 
+    while task.wait(0.25) do 
+        local target = FindNearestPlayer()
+        if target then 
+            StatusText.Text = "Target: " .. target.Name
+            StatusText.TextColor3 = Color3.fromRGB(0, 210, 255)
+        else 
+            StatusText.Text = "Target: Searching..." 
+            StatusText.TextColor3 = Color3.fromRGB(150, 150, 160)
+        end
+        if _G.KillAura.running then StatusText.Text = StatusText.Text .. "\nAura Hits: " .. _G.KillAura.fires end
+        if _G.LagWallCombo.running then StatusText.Text = StatusText.Text .. "\n[Lag Engine Active]" end
+        if _G.Invulnerability.running then StatusText.Text = StatusText.Text .. "\n[I-Frames Active]" end
+    end 
+end)
+
+print("[Met1rror] UI fully loaded with Interes tab.")
